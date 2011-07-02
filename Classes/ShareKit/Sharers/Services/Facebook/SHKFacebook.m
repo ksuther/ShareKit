@@ -21,6 +21,8 @@ static NSString *const SHKFacebookPendingItem = @"SHKFacebookPendingItem";
 - (id)init {
 	if (self = [super init]) {
 		permissions = [[NSArray alloc] initWithObjects:@"publish_stream", nil];
+        
+        [self setQuiet:YES];
 	}
 	
 	return self;
@@ -70,7 +72,7 @@ static NSString *const SHKFacebookPendingItem = @"SHKFacebookPendingItem";
 #pragma mark Configuration : Dynamic Enable
 
 - (BOOL)shouldAutoShare {
-	return YES; // FBConnect presents its own dialog
+	return NO;
 }
 
 #pragma mark -
@@ -101,6 +103,22 @@ static NSString *const SHKFacebookPendingItem = @"SHKFacebookPendingItem";
 
 #pragma mark -
 #pragma mark Share API Methods
+
+- (void)show {
+    if (item.shareType == SHKShareTypeURL) {
+        NSMutableDictionary *params = [NSMutableDictionary dictionaryWithObjectsAndKeys:
+									   [item.URL absoluteString], @"link",
+									   item.title, @"name",
+									   item.text, @"caption",
+									   nil];
+		
+		if ([item customValueForKey:@"image"]) {
+			[params setObject:[item customValueForKey:@"image"] forKey:@"picture"];
+		}
+        
+        [self.facebook dialog:@"feed" andParams:params andDelegate:self];
+    }
+}
 
 - (BOOL)send {
 	if (item.shareType == SHKShareTypeURL) {
@@ -152,15 +170,19 @@ static NSString *const SHKFacebookPendingItem = @"SHKFacebookPendingItem";
 }
 
 - (void)dialogDidComplete:(FBDialog *)dialog {
-	if (pendingFacebookAction == SHKFacebookPendingStatus) {
-		[self sendDidFinish];
-	}
+    [self sendDidFinish];
 }
 
 - (void)dialogDidNotComplete:(FBDialog *)dialog {
-	if (pendingFacebookAction == SHKFacebookPendingStatus) {
-		[self sendDidCancel];
-	}
+    [self sendDidCancel];
+}
+
+- (void)dialogDidNotCompleteWithUrl:(NSURL *)url {
+    [self sendDidCancel];
+}
+
+- (void)dialog:(FBDialog*)dialog didFailWithError:(NSError *)error {
+    [self sendDidCancel];
 }
 
 - (BOOL)dialog:(FBDialog *)dialog shouldOpenURLInExternalBrowser:(NSURL *)url {
